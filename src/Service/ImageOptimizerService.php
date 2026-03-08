@@ -21,9 +21,9 @@ use Doctrine\DBAL\Connection;
  */
 class ImageOptimizerService
 {
-    private Connection $connection;
-    private string $prefix;
-    private string $imgPath;
+    private readonly Connection $connection;
+    private readonly string $prefix;
+    private readonly string $imgPath;
 
     public function __construct(
         Connection $connection,
@@ -269,7 +269,7 @@ class ImageOptimizerService
 
         $success = match ($mimeType) {
             'image/jpeg' => imagejpeg($image, $imagePath, $quality),
-            'image/png' => imagepng($image, $imagePath, (int) round(($quality - 100) / 11.111111)),
+            'image/png' => imagepng($image, $imagePath, (int) round((100 - $quality) / 11.111111)),
             'image/gif' => imagegif($image, $imagePath),
             default => false,
         };

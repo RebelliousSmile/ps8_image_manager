@@ -20,9 +20,9 @@ use Doctrine\DBAL\Connection;
  */
 class WebpConverterService
 {
-    private Connection $connection;
-    private string $prefix;
-    private string $imgPath;
+    private readonly Connection $connection;
+    private readonly string $prefix;
+    private readonly string $imgPath;
 
     public function __construct(
         Connection $connection,
@@ -162,8 +162,12 @@ class WebpConverterService
             'total' => $totalImages,
         ];
 
+        $imageTypes = $this->connection->fetchAllAssociative("
+            SELECT name, width, height FROM {$this->prefix}image_type WHERE products = 1
+        ");
+
         foreach ($imageIds as $imageId) {
-            $result = $this->convertImage($this->getImagePath((int) $imageId), $this->getImagePath((int) $imageId) . '.webp');
+            $result = $this->convertImage($this->getImagePath((int) $imageId), $imageTypes);
 
             if ($result === null) {
                 // No source file found
@@ -193,9 +197,11 @@ class WebpConverterService
      * Returns the number of thumbnails converted, false if skipped (no source),
      * or null on a hard error.
      *
+     * @param array<int, array<string, mixed>> $imageTypes Pre-loaded image types (avoids N+1)
+     *
      * @return int|false|null
      */
-    public function convertImage(string $sourcePath, string $targetPath): int|false|null
+    public function convertImage(string $sourcePath, array $imageTypes = []): int|false|null
     {
         // Resolve the actual source file (original image)
         $sourceFile = $this->resolveSourceFile(dirname($sourcePath), basename($sourcePath));
@@ -203,15 +209,16 @@ class WebpConverterService
             return null;
         }
 
-        $imageTypes = $this->connection->fetchAllAssociative("
-            SELECT name, width, height FROM {$this->prefix}image_type WHERE products = 1
-        ");
+        if (empty($imageTypes)) {
+            $imageTypes = $this->connection->fetchAllAssociative("
+                SELECT name, width, height FROM {$this->prefix}image_type WHERE products = 1
+            ");
+        }
 
         $converted = 0;
-        $basePath = rtrim($sourcePath, '.webp');
 
         foreach ($imageTypes as $type) {
-            $destFile = $basePath . '-' . $type['name'] . '.webp';
+            $destFile = $sourcePath . '-' . $type['name'] . '.webp';
 
             // Skip already converted thumbnails
             if (file_exists($destFile)) {
