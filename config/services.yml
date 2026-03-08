@@ -1,0 +1,30 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    ScImageManager\:
+        resource: '../src/'
+        exclude:
+            - '../src/Traits/'
+
+    ScImageManager\Service\WebpConverterService:
+        arguments:
+            $connection: '@doctrine.dbal.default_connection'
+            $prefix: '%database_prefix%'
+            $projectDir: '%kernel.project_dir%'
+
+    ScImageManager\Service\ImageOptimizerService:
+        arguments:
+            $connection: '@doctrine.dbal.default_connection'
+            $prefix: '%database_prefix%'
+            $projectDir: '%kernel.project_dir%'
+
+    ScImageManager\Controller\Admin\ImageManagerController:
+        arguments:
+            $webpConverter: '@ScImageManager\Service\WebpConverterService'
+            $imageOptimizer: '@ScImageManager\Service\ImageOptimizerService'
+        tags:
+            - { name: 'controller.service_arguments' }
+        public: true

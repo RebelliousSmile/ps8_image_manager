@@ -1,0 +1,23 @@
+sc_image_manager_index:
+    path: /sc-image-manager/
+    methods: [GET]
+    defaults:
+        _controller: 'ScImageManager\Controller\Admin\ImageManagerController::indexAction'
+
+sc_image_manager_webp_batch:
+    path: /sc-image-manager/webp-batch
+    methods: [GET, POST]
+    defaults:
+        _controller: 'ScImageManager\Controller\Admin\ImageManagerController::webpBatchAction'
+
+sc_image_manager_optimize_batch:
+    path: /sc-image-manager/optimize-batch
+    methods: [GET, POST]
+    defaults:
+        _controller: 'ScImageManager\Controller\Admin\ImageManagerController::optimizeBatchAction'
+
+sc_image_manager_stats:
+    path: /sc-image-manager/stats
+    methods: [GET]
+    defaults:
+        _controller: 'ScImageManager\Controller\Admin\ImageManagerController::statsAction'

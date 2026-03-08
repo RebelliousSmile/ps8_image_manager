@@ -1,0 +1,111 @@
+<div class="row" id="stats-block">
+    {# Total Images #}
+    <div class="col-6 col-lg-3 mb-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-6 text-primary fw-bold">{{ stats.total_images }}</div>
+                <div class="text-muted small mt-1">Total Product Images</div>
+            </div>
+        </div>
+    </div>
+
+    {# WebP Coverage #}
+    <div class="col-6 col-lg-3 mb-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-6 fw-bold {% if stats.coverage_percent >= 80 %}text-success{% elseif stats.coverage_percent >= 40 %}text-warning{% else %}text-danger{% endif %}">
+                    {{ stats.coverage_percent }}%
+                </div>
+                <div class="text-muted small mt-1">WebP Coverage</div>
+                <div class="progress mt-2" style="height:6px;">
+                    <div class="progress-bar bg-success"
+                         role="progressbar"
+                         style="width: {{ stats.coverage_percent }}%"
+                         aria-valuenow="{{ stats.coverage_percent }}"
+                         aria-valuemin="0"
+                         aria-valuemax="100"></div>
+                </div>
+                <div class="small mt-1 text-muted">
+                    {{ stats.with_webp }} / {{ stats.total_images }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Estimated Savings #}
+    <div class="col-6 col-lg-3 mb-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-6 text-info fw-bold">
+                    {% if stats.estimated_savings_bytes >= 1048576 %}
+                        {{ (stats.estimated_savings_bytes / 1048576)|number_format(1) }} MB
+                    {% elseif stats.estimated_savings_bytes >= 1024 %}
+                        {{ (stats.estimated_savings_bytes / 1024)|number_format(0) }} KB
+                    {% else %}
+                        {{ stats.estimated_savings_bytes }} B
+                    {% endif %}
+                </div>
+                <div class="text-muted small mt-1">Estimated Savings</div>
+                {% if stats.is_estimate is defined and stats.is_estimate %}
+                    <div class="small text-muted mt-1">(based on {{ stats.sample_size }} sample)</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Image Types #}
+    <div class="col-6 col-lg-3 mb-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="display-6 text-secondary fw-bold">{{ stats.total_types }}</div>
+                <div class="text-muted small mt-1">Image Types</div>
+                {% if stats.image_types is defined and stats.image_types|length > 0 %}
+                    <div class="small text-muted mt-2">
+                        {% for type in stats.image_types|slice(0, 3) %}
+                            <span class="badge bg-light text-dark border me-1">{{ type.name }}</span>
+                        {% endfor %}
+                        {% if stats.image_types|length > 3 %}
+                            <span class="text-muted">+{{ stats.image_types|length - 3 }} more</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Capabilities Bar #}
+<div class="row mt-2">
+    <div class="col-12">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="text-muted small me-2">PHP Extensions:</span>
+            {% if capabilities.imagick %}
+                <span class="badge bg-success">
+                    Imagick
+                    {% if capabilities.imagick_version %}
+                        <small class="opacity-75">({{ capabilities.imagick_version|slice(0, 20) }})</small>
+                    {% endif %}
+                </span>
+            {% else %}
+                <span class="badge bg-secondary">Imagick (not installed)</span>
+            {% endif %}
+
+            {% if capabilities.gd %}
+                <span class="badge bg-success">
+                    GD
+                    {% if capabilities.gd_version %}
+                        <small class="opacity-75">({{ capabilities.gd_version }})</small>
+                    {% endif %}
+                </span>
+            {% else %}
+                <span class="badge bg-secondary">GD (not installed)</span>
+            {% endif %}
+
+            {% if capabilities.webp_support %}
+                <span class="badge bg-success">WebP ready</span>
+            {% else %}
+                <span class="badge bg-danger">WebP not supported</span>
+            {% endif %}
+        </div>
+    </div>
+</div>

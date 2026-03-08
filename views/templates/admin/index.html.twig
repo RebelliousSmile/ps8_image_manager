@@ -1,0 +1,229 @@
+{% extends '@PrestaShop/Admin/layout.html.twig' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="card-header-title">
+                        SC Image Manager — WebP Conversion &amp; Optimization
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% include '@Modules/sc_image_manager/views/templates/admin/_stats.html.twig' with { stats: stats, capabilities: capabilities } %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# WebP Conversion Section #}
+    <div class="row">
+        <div class="col-12 col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="card-header-title">WebP Conversion</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Convert all product image thumbnails to WebP format for faster page loads.
+                        Existing WebP files are skipped automatically.
+                    </p>
+
+                    {% if capabilities.webp_support %}
+                        <div id="webp-progress" class="mb-3" style="display:none;">
+                            <div class="progress mb-2">
+                                <div id="webp-progress-bar"
+                                     class="progress-bar progress-bar-striped progress-bar-animated"
+                                     role="progressbar"
+                                     style="width: 0%"
+                                     aria-valuenow="0"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">0%</div>
+                            </div>
+                            <small class="text-muted" id="webp-progress-text">Starting...</small>
+                        </div>
+                        <div id="webp-result" class="alert" style="display:none;"></div>
+                        <button id="btn-start-webp"
+                                class="btn btn-primary"
+                                data-url="{{ path('sc_image_manager_webp_batch') }}">
+                            Start WebP Conversion
+                        </button>
+                        <button id="btn-stop-webp" class="btn btn-secondary" style="display:none;">
+                            Stop
+                        </button>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            WebP conversion is not available. Please install the GD or Imagick PHP extension with WebP support.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# Image Optimization Section #}
+        <div class="col-12 col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="card-header-title">Image Optimization</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Re-encode JPEG and PNG images to reduce file size without visible quality loss.
+                        Processes original product images in place.
+                    </p>
+
+                    {% if capabilities.imagick or capabilities.gd %}
+                        <div id="optimize-progress" class="mb-3" style="display:none;">
+                            <div class="progress mb-2">
+                                <div id="optimize-progress-bar"
+                                     class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                                     role="progressbar"
+                                     style="width: 0%"
+                                     aria-valuenow="0"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">0%</div>
+                            </div>
+                            <small class="text-muted" id="optimize-progress-text">Starting...</small>
+                        </div>
+                        <div id="optimize-result" class="alert" style="display:none;"></div>
+                        <button id="btn-start-optimize"
+                                class="btn btn-success"
+                                data-url="{{ path('sc_image_manager_optimize_batch') }}">
+                            Start Optimization
+                        </button>
+                        <button id="btn-stop-optimize" class="btn btn-secondary" style="display:none;">
+                            Stop
+                        </button>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            Image optimization is not available. Please install the GD or Imagick PHP extension.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+    (function () {
+        'use strict';
+
+        function runBatch(config) {
+            var state = {
+                running: false,
+                offset: 0,
+                totalConverted: 0,
+                totalSaved: 0,
+                errors: []
+            };
+
+            config.btnStart.addEventListener('click', function () {
+                if (state.running) return;
+                state.running = true;
+                state.offset = 0;
+                state.totalConverted = 0;
+                state.totalSaved = 0;
+                state.errors = [];
+
+                config.btnStart.style.display = 'none';
+                config.btnStop.style.display = '';
+                config.progressWrap.style.display = '';
+                config.resultWrap.style.display = 'none';
+
+                processNext();
+            });
+
+            config.btnStop.addEventListener('click', function () {
+                state.running = false;
+                finish('Stopped by user.');
+            });
+
+            function processNext() {
+                if (!state.running) return;
+
+                var url = config.url + '?offset=' + state.offset + '&limit=' + config.limit;
+                fetch(url, { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (!data.success) {
+                            finish('Error: ' + (data.error || 'unknown'));
+                            return;
+                        }
+
+                        state.totalConverted += (data.converted || data.optimized || 0);
+                        state.totalSaved += (data.total_saved_bytes || 0);
+                        if (data.errors && data.errors.length) {
+                            state.errors = state.errors.concat(data.errors);
+                        }
+
+                        var pct = Math.min(100, data.progress || 0);
+                        config.progressBar.style.width = pct + '%';
+                        config.progressBar.setAttribute('aria-valuenow', pct);
+                        config.progressBar.textContent = pct + '%';
+                        config.progressText.textContent = (data.converted || data.optimized || 0) +
+                            ' processed in this batch — ' + pct + '% overall';
+
+                        if (data.done) {
+                            state.running = false;
+                            var msg = 'Done! ' + state.totalConverted + ' item(s) processed.';
+                            if (state.totalSaved > 0) {
+                                msg += ' Saved ~' + Math.round(state.totalSaved / 1024) + ' KB.';
+                            }
+                            finish(msg, 'success');
+                        } else {
+                            state.offset = data.next_offset;
+                            setTimeout(processNext, 100);
+                        }
+                    })
+                    .catch(function (err) {
+                        finish('Network error: ' + err.message);
+                    });
+            }
+
+            function finish(msg, type) {
+                state.running = false;
+                config.btnStart.style.display = '';
+                config.btnStop.style.display = 'none';
+                config.resultWrap.style.display = '';
+                config.resultWrap.className = 'alert alert-' + (type || 'danger');
+                config.resultWrap.textContent = msg;
+            }
+        }
+
+        // WebP Conversion
+        var btnStartWebp = document.getElementById('btn-start-webp');
+        if (btnStartWebp) {
+            runBatch({
+                url: btnStartWebp.dataset.url,
+                limit: 50,
+                btnStart: btnStartWebp,
+                btnStop: document.getElementById('btn-stop-webp'),
+                progressWrap: document.getElementById('webp-progress'),
+                progressBar: document.getElementById('webp-progress-bar'),
+                progressText: document.getElementById('webp-progress-text'),
+                resultWrap: document.getElementById('webp-result')
+            });
+        }
+
+        // Optimization
+        var btnStartOptimize = document.getElementById('btn-start-optimize');
+        if (btnStartOptimize) {
+            runBatch({
+                url: btnStartOptimize.dataset.url,
+                limit: 20,
+                btnStart: btnStartOptimize,
+                btnStop: document.getElementById('btn-stop-optimize'),
+                progressWrap: document.getElementById('optimize-progress'),
+                progressBar: document.getElementById('optimize-progress-bar'),
+                progressText: document.getElementById('optimize-progress-text'),
+                resultWrap: document.getElementById('optimize-result')
+            });
+        }
+    })();
+    </script>
+{% endblock %}
