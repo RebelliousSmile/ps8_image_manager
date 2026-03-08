@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace ScImageManager\Controller\Admin;
 
 use PrestaShopBundle\Controller\Admin\FrameworkBundleAdminController;
+use PrestaShopBundle\Security\Annotation\AdminSecurity;
 use ScImageManager\Service\ImageOptimizerService;
 use ScImageManager\Service\WebpConverterService;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -33,6 +34,8 @@ class ImageManagerController extends FrameworkBundleAdminController
 
     /**
      * Dashboard: WebP stats + capabilities overview
+     *
+     * @AdminSecurity("is_granted('read', request.get('_legacy_controller'))")
      */
     public function indexAction(): Response
     {
@@ -51,9 +54,15 @@ class ImageManagerController extends FrameworkBundleAdminController
 
     /**
      * AJAX endpoint: convert a batch of images to WebP
+     *
+     * @AdminSecurity("is_granted('update', request.get('_legacy_controller'))")
      */
     public function webpBatchAction(Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('sc_image_manager_webp', $request->request->get('_token'))) {
+            return $this->json(['success' => false, 'error' => 'Invalid CSRF token.'], Response::HTTP_FORBIDDEN);
+        }
+
         $offset = (int) $request->query->get('offset', 0);
         $limit = (int) $request->query->get('limit', 50);
 
@@ -75,9 +84,15 @@ class ImageManagerController extends FrameworkBundleAdminController
 
     /**
      * AJAX endpoint: optimize a batch of images in place
+     *
+     * @AdminSecurity("is_granted('update', request.get('_legacy_controller'))")
      */
     public function optimizeBatchAction(Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('sc_image_manager_optimize', $request->request->get('_token'))) {
+            return $this->json(['success' => false, 'error' => 'Invalid CSRF token.'], Response::HTTP_FORBIDDEN);
+        }
+
         $offset = (int) $request->query->get('offset', 0);
         $limit = (int) $request->query->get('limit', 20);
 
@@ -99,6 +114,8 @@ class ImageManagerController extends FrameworkBundleAdminController
 
     /**
      * AJAX endpoint: return up-to-date stats as JSON (for dashboard refresh)
+     *
+     * @AdminSecurity("is_granted('read', request.get('_legacy_controller'))")
      */
     public function statsAction(): JsonResponse
     {
